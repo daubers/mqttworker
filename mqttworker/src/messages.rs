@@ -1,4 +1,5 @@
-use std::thread;
+use std::{fmt, thread};
+use std::fmt::Formatter;
 use sysinfo::{
     Components, Disks, Networks, System,
 };
@@ -6,15 +7,18 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use paho_mqtt as mqtt;
 use paho_mqtt::Client;
+use crate::messages::MessageType::{Announcement, Capabilities};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 enum MessageDirection {
     Request,
     Response,
     Broadcast,
 }
 
-#[derive(Serialize, Deserialize)]
+
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
     direction: MessageDirection,
     worker_id: String,
@@ -22,7 +26,7 @@ pub struct Message {
     topic: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct CapabilitiesMessage {
     message_config: Message,
     available_memory: u64,
@@ -40,7 +44,7 @@ impl CapabilitiesMessage {
         sys.refresh_all();
 
         CapabilitiesMessage {
-            message_config: Message {worker_id, direction: MessageDirection::Broadcast,message_type: "capabilities".to_string(), topic: "worker/capabilities".to_string() },
+            message_config: Message {worker_id, direction: MessageDirection::Broadcast,message_type: "capabilities".to_string(), topic: "workers/capabilities".to_string() },
             available_memory: sys.total_memory(),
             num_cores: sys.cpus().len() as u32,
             architecture: std::env::consts::ARCH.to_string(),
@@ -68,8 +72,16 @@ pub struct WorkerAnnouncement {
     #[serde(skip)]
     #[serde(default = "mqtt_client_default")]
     mqtt_client: mqtt::Client,
-    #[serde(skip)]
     broadcast_interval: u64
+}
+
+impl fmt::Debug for WorkerAnnouncement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WorkerAnnouncement")
+            .field("message_config", &self.message_config)
+            .field("broadcast_interval", &self.broadcast_interval)
+            .finish()
+    }
 }
 
 impl WorkerAnnouncement {
@@ -105,4 +117,27 @@ impl WorkerAnnouncement {
             }
         };
     }
+}
+
+#[derive(Debug)]
+pub enum MessageType {
+    Capabilities(CapabilitiesMessage),
+    Announcement(WorkerAnnouncement),
+}
+
+pub fn process_message(message: &mqtt::Message) -> Option<MessageType> {
+    let deserialized_message = match message.topic() {
+        "workers/announcements" => {
+            let this_message: WorkerAnnouncement = serde_json::from_str(message.payload_str().to_string().as_str()).unwrap();
+            Some(Announcement(this_message))
+        },
+        "workers/capabilities" => {
+            let this_message: CapabilitiesMessage = serde_json::from_str(message.payload_str().to_string().as_str()).unwrap();
+            Some(Capabilities(this_message))
+        },
+        &_ => {
+            None
+        }
+    };
+    deserialized_message
 }
