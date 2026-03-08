@@ -409,6 +409,7 @@ dependencies = [
  "chrono",
  "diesel",
  "dotenvy",
+ "mqttworker",
  "paho-mqtt",
  "serde",
  "serde_json",
