@@ -1,5 +1,5 @@
 /* @generated and managed by dsync */
-
+use mqttworker::WorkerAnnouncement;
 #[allow(unused)]
 use crate::diesel::*;
 use crate::schema::*;
@@ -15,9 +15,9 @@ pub struct Workers {
     /// Field representing column `name`
     pub name: String,
     /// Field representing column `capabilities`
-    pub capabilities: serde_json::Value,
+    pub capabilities: Option<serde_json::Value>,
     /// Field representing column `last_seen`
-    pub last_seen: chrono::NaiveDateTime,
+    pub last_seen: Option<chrono::NaiveDateTime>,
 }
 
 /// Create Struct for a row in table `workers` for [`Workers`]
@@ -25,13 +25,13 @@ pub struct Workers {
 #[diesel(table_name=workers)]
 pub struct CreateWorkers {
     /// Field representing column `id`
-    pub id: i32,
+    pub id: Option<i32>,
     /// Field representing column `name`
     pub name: String,
     /// Field representing column `capabilities`
-    pub capabilities: serde_json::Value,
+    pub capabilities: Option<serde_json::Value>,
     /// Field representing column `last_seen`
-    pub last_seen: chrono::NaiveDateTime,
+    pub last_seen: Option<chrono::NaiveDateTime>,
 }
 
 /// Update Struct for a row in table `workers` for [`Workers`]
@@ -41,9 +41,9 @@ pub struct UpdateWorkers {
     /// Field representing column `name`
     pub name: Option<String>,
     /// Field representing column `capabilities`
-    pub capabilities: Option<serde_json::Value>,
+    pub capabilities: Option<Option<serde_json::Value>>,
     /// Field representing column `last_seen`
-    pub last_seen: Option<chrono::NaiveDateTime>,
+    pub last_seen: Option<Option<chrono::NaiveDateTime>>,
 }
 
 /// Result of a `.paginate` function
@@ -75,7 +75,10 @@ impl Workers {
 
         workers.filter(id.eq(param_id)).first::<Self>(db)
     }
-
+    pub fn search_by_message(db: &mut ConnectionType, message: &WorkerAnnouncement) -> diesel::QueryResult<Vec<Self>> {
+        use crate::schema::workers::dsl::*;
+        workers.filter(name.eq(message.message_config.worker_id.clone())).load::<Self>(db)
+    }
     /// Update a row in `workers`, identified by the primary key with [`UpdateWorkers`]
     pub fn update(db: &mut ConnectionType, param_id: i32, item: &UpdateWorkers) -> diesel::QueryResult<Self> {
         use crate::schema::workers::dsl::*;
