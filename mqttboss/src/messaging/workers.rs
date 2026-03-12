@@ -9,12 +9,12 @@ pub fn process_message(message: Message) {
     match get_message(&message) {
         Some(message_struct) => {
             match message_struct {
-                MessageType::Capabilities(msg) => {
+                MessageType::Capabilities(_msg) => {
 
                 }
                 MessageType::Announcement(msg) => {
                     let db_results =  Workers::search_by_message(connection, &msg).unwrap();
-                    if db_results.len() == 0 {
+                    if db_results.is_empty() {
                         // create new record
                         Workers::create(connection, &CreateWorkers { id: None, name: msg.message_config.worker_id, capabilities: None, last_seen: None }).unwrap();
                     }

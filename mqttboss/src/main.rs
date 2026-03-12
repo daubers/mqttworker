@@ -3,13 +3,9 @@ mod schema;
 pub mod messaging;
 pub mod db;
 
-use crate::messaging::workers;
-use std::{env, thread};
-use ::diesel::{Connection, PgConnection};
-use dotenvy::dotenv;
+use std::thread;
 use paho_mqtt as mqtt;
 use mqttworker::messages::process_message as get_message;
-use crate::db::establish_connection;
 use crate::messaging::workers::process_message;
 
 pub mod diesel {
@@ -23,8 +19,8 @@ fn main() {
     let client_id = "boss";
     let topic = "workers/#".to_string();
     let qos = 1;
-    let username = "RustClient";
-    let password = "RustPwd";
+    let _username = "RustClient";
+    let _password = "RustPwd";
 
     // Create a client creation option object. This is used to pass further information during the client creation process.
     let client_options = mqtt::CreateOptionsBuilder::new()
@@ -45,7 +41,7 @@ fn main() {
     // Starts the client receiving messages
     let rx_queue = client.start_consuming();
     // Create a thread that stays pending over incoming messages.
-    let handle = thread::spawn(move || {
+    let _handle = thread::spawn(move || {
         for mqttmsg in rx_queue.iter() {
             if let Some(mqttmsg) = mqttmsg {
                 println!("Unwrapped message: -> {:?}", get_message(&mqttmsg).unwrap());
