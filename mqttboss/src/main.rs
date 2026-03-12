@@ -1,26 +1,22 @@
 mod models;
 mod schema;
 pub mod messaging;
+pub mod db;
 
 use crate::messaging::workers;
 use std::{env, thread};
 use ::diesel::{Connection, PgConnection};
 use dotenvy::dotenv;
 use paho_mqtt as mqtt;
-use serde_json::Value;
 use mqttworker::messages::process_message as get_message;
+use crate::db::establish_connection;
+use crate::messaging::workers::process_message;
 
 pub mod diesel {
     pub use diesel::*;
 }
 
-pub fn establish_connection() -> PgConnection {
-    dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
-}
 
 fn main() {
     let hostname = "localhost";
@@ -50,11 +46,11 @@ fn main() {
     let rx_queue = client.start_consuming();
     // Create a thread that stays pending over incoming messages.
     let handle = thread::spawn(move || {
-        let connection = &mut establish_connection();
         for mqttmsg in rx_queue.iter() {
             if let Some(mqttmsg) = mqttmsg {
-                println!("Received: -> {:?}", get_message(&mqttmsg).unwrap());
+                println!("Unwrapped message: -> {:?}", get_message(&mqttmsg).unwrap());
                 println!("Received: -> {}", mqttmsg.topic());
+                process_message(mqttmsg);
             } else {
                 println!("Unsubscribe: connection closed");
                 break;

@@ -20,10 +20,10 @@ enum MessageDirection {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
-    direction: MessageDirection,
-    worker_id: String,
-    message_type: String,
-    topic: String,
+    pub direction: MessageDirection,
+    pub worker_id: String,
+    pub message_type: String,
+    pub topic: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -68,11 +68,11 @@ fn mqtt_client_default() -> Client {
 
 #[derive(Serialize, Deserialize)]
 pub struct WorkerAnnouncement {
-    message_config: Message,
+    pub message_config: Message,
     #[serde(skip)]
     #[serde(default = "mqtt_client_default")]
     mqtt_client: mqtt::Client,
-    broadcast_interval: u64
+    pub broadcast_interval: u64
 }
 
 impl fmt::Debug for WorkerAnnouncement {

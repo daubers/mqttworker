@@ -5,7 +5,7 @@ diesel::table! {
         id -> Int4,
         #[max_length = 255]
         name -> Varchar,
-        capabilities -> Jsonb,
-        last_seen -> Timestamp,
+        capabilities -> Nullable<Jsonb>,
+        last_seen -> Nullable<Timestamp>,
     }
 }
