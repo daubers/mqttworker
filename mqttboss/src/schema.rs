@@ -5,7 +5,11 @@ diesel::table! {
         id -> Int4,
         #[max_length = 255]
         name -> Varchar,
-        capabilities -> Nullable<Jsonb>,
         last_seen -> Nullable<Timestamp>,
+        cpus -> Nullable<Int4>,
+        ram -> Nullable<Int4>,
+        disk -> Nullable<Float8>,
+        gpu -> Nullable<Int4>,
+        tags -> Nullable<Jsonb>,
     }
 }
