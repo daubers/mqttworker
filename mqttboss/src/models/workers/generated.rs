@@ -14,10 +14,18 @@ pub struct Workers {
     pub id: i32,
     /// Field representing column `name`
     pub name: String,
-    /// Field representing column `capabilities`
-    pub capabilities: Option<serde_json::Value>,
     /// Field representing column `last_seen`
     pub last_seen: Option<chrono::NaiveDateTime>,
+    /// Field representing column `cpus`
+    pub cpus: Option<i32>,
+    /// Field representing column `ram`
+    pub ram: Option<i32>,
+    /// Field representing column `disk`
+    pub disk: Option<f64>,
+    /// Field representing column `gpu`
+    pub gpu: Option<i32>,
+    /// Field representing column `tags`
+    pub tags: Option<serde_json::Value>,
 }
 
 /// Create Struct for a row in table `workers` for [`Workers`]
@@ -28,10 +36,18 @@ pub struct CreateWorkers {
     pub id: Option<i32>,
     /// Field representing column `name`
     pub name: String,
-    /// Field representing column `capabilities`
-    pub capabilities: Option<serde_json::Value>,
     /// Field representing column `last_seen`
     pub last_seen: Option<chrono::NaiveDateTime>,
+    /// Field representing column `cpus`
+    pub cpus: Option<i32>,
+    /// Field representing column `ram`
+    pub ram: Option<i32>,
+    /// Field representing column `disk`
+    pub disk: Option<f64>,
+    /// Field representing column `gpu`
+    pub gpu: Option<i32>,
+    /// Field representing column `tags`
+    pub tags: Option<serde_json::Value>,
 }
 
 /// Update Struct for a row in table `workers` for [`Workers`]
@@ -40,10 +56,18 @@ pub struct CreateWorkers {
 pub struct UpdateWorkers {
     /// Field representing column `name`
     pub name: Option<String>,
-    /// Field representing column `capabilities`
-    pub capabilities: Option<Option<serde_json::Value>>,
     /// Field representing column `last_seen`
     pub last_seen: Option<Option<chrono::NaiveDateTime>>,
+    /// Field representing column `cpus`
+    pub cpus: Option<Option<i32>>,
+    /// Field representing column `ram`
+    pub ram: Option<Option<i32>>,
+    /// Field representing column `disk`
+    pub disk: Option<Option<f64>>,
+    /// Field representing column `gpu`
+    pub gpu: Option<Option<i32>>,
+    /// Field representing column `tags`
+    pub tags: Option<Option<serde_json::Value>>,
 }
 
 /// Result of a `.paginate` function
@@ -75,10 +99,12 @@ impl Workers {
 
         workers.filter(id.eq(param_id)).first::<Self>(db)
     }
+
     pub fn search_by_message(db: &mut ConnectionType, message: &WorkerAnnouncement) -> diesel::QueryResult<Vec<Self>> {
         use crate::schema::workers::dsl::*;
         workers.filter(name.eq(message.message_config.worker_id.clone())).load::<Self>(db)
     }
+
     /// Update a row in `workers`, identified by the primary key with [`UpdateWorkers`]
     pub fn update(db: &mut ConnectionType, param_id: i32, item: &UpdateWorkers) -> diesel::QueryResult<Self> {
         use crate::schema::workers::dsl::*;
