@@ -1,7 +1,7 @@
 use std::{fmt, thread};
 use std::fmt::Formatter;
 use sysinfo::{
-    Components, Disks, Networks, System,
+    System,
 };
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -10,7 +10,7 @@ use paho_mqtt::Client;
 use crate::messages::MessageType::{Announcement, Capabilities};
 
 #[derive(Serialize, Deserialize, Debug)]
-enum MessageDirection {
+pub enum MessageDirection {
     Request,
     Response,
     Broadcast,
@@ -102,12 +102,12 @@ impl WorkerAnnouncement {
             loop {
                 match mqtt_client.publish(message.clone()) {
                     Ok(_) => (),
-                    Err(e) => {}
+                    Err(_e) => {}
                 };
                 thread::sleep(std::time::Duration::from_secs(broadcast_interval));
             }
         });
-        let broadcast_thread = match broadcast_thread_result {
+        let _broadcast_thread = match broadcast_thread_result {
             Ok(broadcast_thread) => {
                 broadcast_thread
             },
