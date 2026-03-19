@@ -1,4 +1,5 @@
-use std::{error::Error, io, time::Duration};
+use std::{collections::HashMap, error::Error, io, time::Duration};
+use chrono::{DateTime, Local};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
@@ -7,20 +8,28 @@ use crossterm::{
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    widgets::{Block, Borders, List, ListItem},
+    widgets::{Block, Borders, Paragraph},
     Frame, Terminal,
 };
 use paho_mqtt as mqtt;
 use mqttworker::process_message;
 
 struct App {
-    messages: Vec<String>,
+    messages: Vec<(DateTime<Local>, String)>,
+    scroll_vertical: u16,
+    scroll_horizontal: u16,
+    topic_counts: HashMap<String, usize>,
+    last_pane_height: u16,
 }
 
 impl App {
     fn new() -> App {
         App {
             messages: Vec::new(),
+            scroll_vertical: 0,
+            scroll_horizontal: 0,
+            topic_counts: HashMap::new(),
+            last_pane_height: 0,
         }
     }
 }
@@ -35,8 +44,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // Create app and run it
-    let app = App::new();
-    let res = run_app(&mut terminal, app).await;
+    let mut app = App::new();
+    let res = run_app(&mut terminal, &mut app).await;
 
     // Restore terminal
     disable_raw_mode()?;
@@ -54,7 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     // MQTT Setup
     let create_opts = mqtt::CreateOptionsBuilder::new()
         .server_uri("tcp://localhost:1883")
@@ -71,20 +80,43 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
     let stream = client.get_stream(25);
 
     if let Err(e) = client.connect(conn_opts).wait() {
-        app.messages.push(format!("Error connecting to MQTT: {:?}", e));
+        app.messages.push((Local::now(), format!("Error connecting to MQTT: {:?}", e)));
     } else {
-        app.messages.push("Connected to MQTT broker".to_string());
+        app.messages.push((Local::now(), "Connected to MQTT broker".to_string()));
         client.subscribe("workers/#", 1).wait().expect("Error subscribing");
     }
 
     loop {
-        terminal.draw(|f| ui(f, &app))?;
+        terminal.draw(|f| ui(f, app)).expect("Can't draw on terminal");
 
         // Check for UI events
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
-                if let KeyCode::Char('q') = key.code {
-                    return Ok(());
+                match key.code {
+                    KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Up => {
+                        app.scroll_vertical = app.scroll_vertical.saturating_sub(1);
+                    }
+                    KeyCode::Down => {
+                        app.scroll_vertical = app.scroll_vertical.saturating_add(1);
+                    }
+                    KeyCode::Left => {
+                        app.scroll_horizontal = app.scroll_horizontal.saturating_sub(1);
+                    }
+                    KeyCode::Right => {
+                        app.scroll_horizontal = app.scroll_horizontal.saturating_add(1);
+                    }
+                    _ => {}
+                }
+            } else if let Event::Mouse(mouse_event) = event::read()? {
+                match mouse_event.kind {
+                    event::MouseEventKind::ScrollUp => {
+                        app.scroll_vertical = app.scroll_vertical.saturating_sub(1);
+                    }
+                    event::MouseEventKind::ScrollDown => {
+                        app.scroll_vertical = app.scroll_vertical.saturating_add(1);
+                    }
+                    _ => {}
                 }
             }
         }
@@ -94,17 +126,29 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
             Ok(Some(msg)) => {
                 let topic = msg.topic();
                 let payload = msg.payload_str();
-                
+
+                *app.topic_counts.entry(topic.to_string()).or_insert(0) += 1;
+
                 match process_message(&msg) {
                     Some(msg_type) => {
-                        app.messages.push(format!("[{}] {:?}", topic, msg_type));
+                        app.messages.push((Local::now(), format!("[{}] {:?}", topic, msg_type)));
                     }
                     None => {
-                        app.messages.push(format!("[{}] {}", topic, payload));
+                        app.messages.push((Local::now(), format!("[{}] {}", topic, payload)));
                     }
                 }
                 
-                // Keep only last 20 messages to avoid overflow
+                // Auto-scroll to the bottom
+                if app.messages.len() > 0 {
+                    let total_messages = app.messages.len() as u16;
+                    if total_messages > app.last_pane_height {
+                        app.scroll_vertical = total_messages - app.last_pane_height;
+                    } else {
+                        app.scroll_vertical = 0;
+                    }
+                }
+
+                // Keep only last 100 messages to avoid overflow
                 if app.messages.len() > 100 {
                     app.messages.remove(0);
                 }
@@ -115,14 +159,15 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Re
     }
 }
 
-fn ui(f: &mut Frame, app: &App) {
+fn ui(f: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
         .constraints(
             [
-                Constraint::Percentage(10),
-                Constraint::Percentage(90),
+                Constraint::Length(3),
+                Constraint::Length(5),
+                Constraint::Min(0),
             ]
             .as_ref(),
         )
@@ -130,19 +175,32 @@ fn ui(f: &mut Frame, app: &App) {
 
     let title = Block::default()
         .borders(Borders::ALL)
-        .title("MQTT WebWatcher TUI (Press 'q' to quit)");
+        .title("MQTT WebWatcher TUI (q: quit, arrows/mouse: scroll)");
     f.render_widget(title, chunks[0]);
 
-    let messages: Vec<ListItem> = app
+    let mut stats: Vec<_> = app.topic_counts.iter().collect();
+    stats.sort_by(|a, b| a.0.cmp(b.0));
+    let stats_text = stats
+        .iter()
+        .map(|(topic, count)| format!("{}: {}", topic, count))
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    let stats_paragraph = Paragraph::new(stats_text)
+        .block(Block::default().borders(Borders::ALL).title("Topic Counts"));
+    f.render_widget(stats_paragraph, chunks[1]);
+
+    let messages_text = app
         .messages
         .iter()
-        .rev() // Show latest first
-        .map(|m| {
-            ListItem::new(m.as_str())
-        })
-        .collect();
-
-    let messages_list = List::new(messages)
-        .block(Block::default().borders(Borders::ALL).title("Messages"));
-    f.render_widget(messages_list, chunks[1]);
+        .map(|(ts, msg)| format!("[{}] {}", ts.format("%H:%M:%S%.6f"), msg))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let messages_block = Block::default().borders(Borders::ALL).title("Messages");
+    let messages_inner_area = messages_block.inner(chunks[2]);
+    app.last_pane_height = messages_inner_area.height;
+    let messages_paragraph = Paragraph::new(messages_text)
+        .block(messages_block)
+        .scroll((app.scroll_vertical, app.scroll_horizontal));
+    f.render_widget(messages_paragraph, chunks[2]);
 }
