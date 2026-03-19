@@ -66,13 +66,21 @@ fn mqtt_client_default() -> Client {
     mqtt::Client::new(client_options).unwrap()
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub enum WorkerAnnouncementType {
+    Online,
+    ShutdownUnexpected,
+    ShutdownExpected
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct WorkerAnnouncement {
     pub message_config: Message,
     #[serde(skip)]
     #[serde(default = "mqtt_client_default")]
     mqtt_client: mqtt::Client,
-    pub broadcast_interval: u64
+    pub broadcast_interval: Option<u64>,
+    pub announcement_type: WorkerAnnouncementType,
 }
 
 impl fmt::Debug for WorkerAnnouncement {
@@ -80,43 +88,53 @@ impl fmt::Debug for WorkerAnnouncement {
         f.debug_struct("WorkerAnnouncement")
             .field("message_config", &self.message_config)
             .field("broadcast_interval", &self.broadcast_interval)
+            .field("announcement_type", &self.announcement_type)
             .finish()
     }
 }
 
 impl WorkerAnnouncement {
-    pub fn new(mqtt_client: mqtt::Client, worker_id: String, broadcast_interval: u64) -> WorkerAnnouncement {
+    pub fn new(mqtt_client: mqtt::Client, worker_id: String, announcement_type: WorkerAnnouncementType, broadcast_interval: Option<u64>) -> WorkerAnnouncement {
         WorkerAnnouncement {
             message_config: Message {worker_id, direction: MessageDirection::Broadcast,message_type: "worker_announcement".to_string(), topic: "workers/announcements".to_string() },
             mqtt_client,
-            broadcast_interval
+            broadcast_interval,
+            announcement_type
         }
+    }
+    pub fn message(&self) -> paho_mqtt::Message {
+        mqtt::Message::new(self.message_config.topic.clone(), serde_json::to_string(self).unwrap(), 1)
     }
 
     pub fn run(&self) {
-        let announcement_message = serde_json::to_string(&self).unwrap();
-        let message = mqtt::Message::new(self.message_config.topic.clone(), announcement_message, 1);
-        let mqtt_client = self.mqtt_client.clone();
-        let broadcast_interval = self.broadcast_interval.clone();
-        let broadcast_thread_result = thread::Builder::new().name("worker_announcer".to_string()).spawn(move || {
-            loop {
-                match mqtt_client.publish(message.clone()) {
-                    Ok(_) => (),
-                    Err(_e) => {}
+        match self.broadcast_interval {
+            None => {}
+            Some(broadcast_interval) => {
+                let announcement_message = serde_json::to_string(&self).unwrap();
+                let message = mqtt::Message::new(self.message_config.topic.clone(), announcement_message, 1);
+                let mqtt_client = self.mqtt_client.clone();
+                let broadcast_thread_result = thread::Builder::new().name("worker_announcer".to_string()).spawn(move || {
+                    loop {
+                        match mqtt_client.publish(message.clone()) {
+                            Ok(_) => (),
+                            Err(_e) => {}
+                        };
+                        thread::sleep(std::time::Duration::from_secs(broadcast_interval));
+                    }
+                });
+                let _broadcast_thread = match broadcast_thread_result {
+                    Ok(broadcast_thread) => {
+                        broadcast_thread
+                    },
+                    Err(e) => {
+                        println!("Failed to spawn broadcast thread: {}", e);
+                        return;
+                    }
                 };
-                thread::sleep(std::time::Duration::from_secs(broadcast_interval));
             }
-        });
-        let _broadcast_thread = match broadcast_thread_result {
-            Ok(broadcast_thread) => {
-                broadcast_thread
-            },
-            Err(e) => {
-                println!("Failed to spawn broadcast thread: {}", e);
-                return;
             }
-        };
-    }
+        }
+
 }
 
 #[derive(Debug)]

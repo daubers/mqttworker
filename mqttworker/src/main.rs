@@ -2,7 +2,7 @@ pub mod messages;
 
 use paho_mqtt as mqtt;
 use std::{thread, time::Duration};
-use crate::messages::{CapabilitiesMessage, WorkerAnnouncement};
+use crate::messages::{CapabilitiesMessage, WorkerAnnouncement, WorkerAnnouncementType};
 
 fn main() {
     let hostname = "localhost";
@@ -20,10 +20,12 @@ fn main() {
 
     // Create the MQTT client
     let client = mqtt::Client::new(client_options).expect("Error during client creation");
+    let will_msg = WorkerAnnouncement::new(client.clone(), "test_worker".to_string(), WorkerAnnouncementType::ShutdownUnexpected, None);
 
     // Create a connection option object to configure the username and other information.
     let connection_options = mqtt::ConnectOptionsBuilder::new()
         .clean_session(true)
+        .will_message(will_msg.message())
         .finalize();
 
     // Connect to the MQTT broker
@@ -46,7 +48,7 @@ fn main() {
         }
     });
 
-    let wa = WorkerAnnouncement::new(client.clone(), "test_worker".to_string(), 10);
+    let wa = WorkerAnnouncement::new(client.clone(), "test_worker".to_string(), WorkerAnnouncementType::Online, Some(10));
     wa.run();
 
     // Publish a message
@@ -55,8 +57,7 @@ fn main() {
     client.publish(mqttmsg).expect("Failed to publish message");
 
     // Keep the program alive for a few seconds to receive messages
-    thread::sleep(Duration::from_secs(10));
-
+    thread::sleep(Duration::from_secs(100));
     // Disconnect the client
     client.disconnect(None).expect("Failed to disconnect");
     handle.join().expect("Failed to join thread");

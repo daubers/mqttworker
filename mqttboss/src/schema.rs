@@ -11,5 +11,6 @@ diesel::table! {
         disk -> Nullable<Float8>,
         gpu -> Nullable<Int4>,
         tags -> Nullable<Jsonb>,
+        available -> Bool,
     }
 }
