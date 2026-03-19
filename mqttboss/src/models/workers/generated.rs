@@ -26,6 +26,7 @@ pub struct Workers {
     pub gpu: Option<i32>,
     /// Field representing column `tags`
     pub tags: Option<serde_json::Value>,
+    pub available: bool,
 }
 
 /// Create Struct for a row in table `workers` for [`Workers`]
@@ -48,6 +49,7 @@ pub struct CreateWorkers {
     pub gpu: Option<i32>,
     /// Field representing column `tags`
     pub tags: Option<serde_json::Value>,
+    pub available: bool,
 }
 
 /// Update Struct for a row in table `workers` for [`Workers`]
@@ -68,6 +70,7 @@ pub struct UpdateWorkers {
     pub gpu: Option<Option<i32>>,
     /// Field representing column `tags`
     pub tags: Option<Option<serde_json::Value>>,
+    pub available: bool,
 }
 
 /// Result of a `.paginate` function
