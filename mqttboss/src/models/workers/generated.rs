@@ -1,5 +1,5 @@
 /* @generated and managed by dsync */
-use mqttworker::WorkerAnnouncement;
+use messages::messages::WorkerAnnouncement;
 #[allow(unused)]
 use crate::diesel::*;
 use crate::schema::*;

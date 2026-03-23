@@ -5,7 +5,7 @@ pub mod db;
 
 use std::thread;
 use paho_mqtt as mqtt;
-use mqttworker::messages::process_message as get_message;
+use messages::messages::process_message as get_message;
 use crate::messaging::workers::process_message;
 
 pub mod diesel {
@@ -57,5 +57,4 @@ fn main() {
     loop {
         thread::sleep(std::time::Duration::from_secs(1));
     }
-    println!("Hello, world!")   ;
 }
