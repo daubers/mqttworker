@@ -1,8 +1,7 @@
-pub mod messages;
 
 use paho_mqtt as mqtt;
 use std::{thread, time::Duration};
-use crate::messages::{CapabilitiesMessage, WorkerAnnouncement, WorkerAnnouncementType};
+use messages::messages::{CapabilitiesMessage, WorkerAnnouncement, WorkerAnnouncementType};
 
 fn main() {
     let hostname = "localhost";

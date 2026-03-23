@@ -1,0 +1,12 @@
+[package]
+name = "web"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+poem = "3.1.12"
+poem-openapi = { version = "5.1.16", features = ["swagger-ui", "openapi-explorer", "chrono"] }
+tokio = { version = "1.50.0", features = ["rt-multi-thread"] }
+futures = "0.3.32"
+env_logger = "0.11.9"
+paho-mqtt = "0.13.3"

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use paho_mqtt as mqtt;
 use paho_mqtt::Client;
+use uuid::Uuid;
 use crate::messages::MessageType::{Announcement, Capabilities};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -16,14 +17,13 @@ pub enum MessageDirection {
     Broadcast,
 }
 
-
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
     pub direction: MessageDirection,
     pub worker_id: String,
     pub message_type: String,
     pub topic: String,
+    pub msg_id: Option<uuid::Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -44,7 +44,7 @@ impl CapabilitiesMessage {
         sys.refresh_all();
 
         CapabilitiesMessage {
-            message_config: Message {worker_id, direction: MessageDirection::Broadcast,message_type: "capabilities".to_string(), topic: "workers/capabilities".to_string() },
+            message_config: Message {worker_id, direction: MessageDirection::Broadcast,message_type: "capabilities".to_string(), topic: "workers/capabilities".to_string(), msg_id: Some(Uuid::new_v4()) },
             available_memory: sys.total_memory(),
             num_cores: sys.cpus().len() as u32,
             architecture: std::env::consts::ARCH.to_string(),
@@ -96,7 +96,7 @@ impl fmt::Debug for WorkerAnnouncement {
 impl WorkerAnnouncement {
     pub fn new(mqtt_client: mqtt::Client, worker_id: String, announcement_type: WorkerAnnouncementType, broadcast_interval: Option<u64>) -> WorkerAnnouncement {
         WorkerAnnouncement {
-            message_config: Message {worker_id, direction: MessageDirection::Broadcast,message_type: "worker_announcement".to_string(), topic: "workers/announcements".to_string() },
+            message_config: Message {worker_id, direction: MessageDirection::Broadcast,message_type: "worker_announcement".to_string(), topic: "workers/announcements".to_string(), msg_id: Some(Uuid::new_v4()) },
             mqtt_client,
             broadcast_interval,
             announcement_type
@@ -134,6 +134,38 @@ impl WorkerAnnouncement {
             }
             }
         }
+
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WorkerRequest {
+    pub message_config: Message,
+    pub query: String,
+    #[serde(skip)]
+    #[serde(default = "mqtt_client_default")]
+    mqtt_client: mqtt::Client,
+}
+
+impl fmt::Debug for WorkerRequest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WorkerRequest")
+            .field("message_config", &self.message_config)
+            .field("query", &self.query)
+            .finish()
+    }
+}
+
+impl WorkerRequest {
+    pub fn new(mqtt_client: mqtt::Client, message_config: Message, query: String) -> WorkerRequest {
+        WorkerRequest {
+            message_config,
+            query,
+            mqtt_client,
+        }
+    }
+    pub fn message(&self) -> paho_mqtt::Message {
+        mqtt::Message::new(self.message_config.topic.clone(), serde_json::to_string(self).unwrap(), 1)
+    }
 
 }
 

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use paho_mqtt::Message;
-use mqttworker::messages::process_message as get_message;
-use mqttworker::{MessageType, WorkerAnnouncementType};
+use messages::messages::process_message as get_message;
+use messages::messages::{MessageType, WorkerAnnouncementType};
 use crate::models::workers::{CreateWorkers, UpdateWorkers, Workers};
 use crate::db::establish_connection;
 

@@ -12,7 +12,7 @@ use ratatui::{
     Frame, Terminal,
 };
 use paho_mqtt as mqtt;
-use mqttworker::process_message;
+use messages::messages::process_message;
 
 struct App {
     messages: Vec<(DateTime<Local>, String)>,
@@ -83,7 +83,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::R
         app.messages.push((Local::now(), format!("Error connecting to MQTT: {:?}", e)));
     } else {
         app.messages.push((Local::now(), "Connected to MQTT broker".to_string()));
-        client.subscribe("workers/#", 1).wait().expect("Error subscribing");
+        client.subscribe("#", 1).wait().expect("Error subscribing");
     }
 
     loop {
