@@ -1,7 +1,8 @@
 /* @generated and managed by dsync */
 use messages::messages::WorkerAnnouncement;
 #[allow(unused)]
-use crate::diesel::*;
+use diesel::*;
+use diesel::associations::HasTable;
 use crate::schema::*;
 
 pub type ConnectionType = diesel::pg::PgConnection;
@@ -97,10 +98,13 @@ impl Workers {
     }
 
     /// Get a row from `workers`, identified by the primary key
-    pub fn read(db: &mut ConnectionType, param_id: i32) -> diesel::QueryResult<Self> {
+    pub fn read(db: &mut ConnectionType, param_id: Option<i32>) -> diesel::QueryResult<Vec<Self>> {
         use crate::schema::workers::dsl::*;
+        match param_id {
+            None => {workers.load::<Workers>(db)}
+            Some(worker_id) => {workers.filter(id.eq(worker_id)).get_results::<Self>(db)}
+        }
 
-        workers.filter(id.eq(param_id)).first::<Self>(db)
     }
 
     pub fn search_by_message(db: &mut ConnectionType, message: &WorkerAnnouncement) -> diesel::QueryResult<Vec<Self>> {

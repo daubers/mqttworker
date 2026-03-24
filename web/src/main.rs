@@ -9,9 +9,11 @@ use paho_mqtt::{AsyncClient, Message};
 use poem::middleware::AddData;
 use poem::web::Data;
 use crate::mqtt::connect_client;
+use mqttboss::db::{establish_connection, PgConnection};
 
 struct AppState {
     mqtt_client: Mutex<AsyncClient>,
+    db_connection: Mutex<PgConnection>
 }
 
 struct Api;
@@ -37,13 +39,14 @@ async fn main() -> Result<(), std::io::Error> {
 
     let state = Arc::new(AppState {
         mqtt_client: Mutex::new(connect_client().await.unwrap()),
+        db_connection: Mutex::new(establish_connection())
     });
     let all_endpoints = (routes::workers::WorkersAPI, Api);
     let api_service =
         OpenApiService::new(all_endpoints, "Hello World", "1.0")
             .server("http://localhost:3000/api");
     let ui = api_service.swagger_ui();
-    
+
 
     Server::new(TcpListener::bind("0.0.0.0:3000"))
         .run(Route::new()

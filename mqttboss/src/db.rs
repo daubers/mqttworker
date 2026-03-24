@@ -1,5 +1,5 @@
 use std::env;
-use diesel::{Connection, PgConnection};
+pub use diesel::{Connection, PgConnection};
 use dotenvy::dotenv;
 
 pub fn establish_connection() -> PgConnection {
