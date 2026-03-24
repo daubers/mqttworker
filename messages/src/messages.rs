@@ -156,11 +156,17 @@ impl fmt::Debug for WorkerRequest {
 }
 
 impl WorkerRequest {
-    pub fn new(mqtt_client: mqtt::Client, message_config: Message, query: String) -> WorkerRequest {
+    pub fn new(mqtt_client: &Client, worker_id: String, msg_id: Uuid, query: String) -> WorkerRequest {
         WorkerRequest {
-            message_config,
+            message_config: Message {
+                direction: MessageDirection::Request,
+                worker_id,
+                message_type: "".to_string(),
+                topic: "/workers/request".to_string(),
+                msg_id: Some(msg_id),
+            },
             query,
-            mqtt_client,
+            mqtt_client: mqtt_client.clone(),
         }
     }
     pub fn message(&self) -> paho_mqtt::Message {
