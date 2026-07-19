@@ -2,6 +2,7 @@ mod models;
 mod schema;
 pub mod messaging;
 pub mod db;
+mod scheduler;
 
 use std::thread;
 use paho_mqtt as mqtt;

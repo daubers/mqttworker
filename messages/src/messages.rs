@@ -8,7 +8,7 @@ use serde_json;
 use paho_mqtt as mqtt;
 use paho_mqtt::Client;
 use uuid::Uuid;
-use crate::messages::MessageType::{Announcement, Capabilities};
+use crate::messages::MessageType::{Announcement, Capabilities, WorkerRequest};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MessageDirection {
@@ -51,8 +51,8 @@ impl CapabilitiesMessage {
         }
     }
 
-    pub fn message(&self) -> String {
-        serde_json::to_string(self).unwrap()
+    pub fn message(&self) -> paho_mqtt::Message {
+        mqtt::Message::new(self.message_config.topic.clone(), serde_json::to_string(self).unwrap(), 1)
     }
 
     pub fn topic(&self) -> String {
@@ -77,8 +77,7 @@ pub enum WorkerAnnouncementType {
 pub struct WorkerAnnouncement {
     pub message_config: Message,
     #[serde(skip)]
-    #[serde(default = "mqtt_client_default")]
-    mqtt_client: mqtt::Client,
+    mqtt_client: Option<mqtt::Client>,
     pub broadcast_interval: Option<u64>,
     pub announcement_type: WorkerAnnouncementType,
 }
@@ -94,7 +93,7 @@ impl fmt::Debug for WorkerAnnouncement {
 }
 
 impl WorkerAnnouncement {
-    pub fn new(mqtt_client: mqtt::Client, worker_id: String, announcement_type: WorkerAnnouncementType, broadcast_interval: Option<u64>) -> WorkerAnnouncement {
+    pub fn new(mqtt_client: Option<mqtt::Client>, worker_id: String, announcement_type: WorkerAnnouncementType, broadcast_interval: Option<u64>) -> WorkerAnnouncement {
         WorkerAnnouncement {
             message_config: Message {worker_id, direction: MessageDirection::Broadcast,message_type: "worker_announcement".to_string(), topic: "workers/announcements".to_string(), msg_id: Some(Uuid::new_v4()) },
             mqtt_client,
@@ -112,7 +111,7 @@ impl WorkerAnnouncement {
             Some(broadcast_interval) => {
                 let announcement_message = serde_json::to_string(&self).unwrap();
                 let message = mqtt::Message::new(self.message_config.topic.clone(), announcement_message, 1);
-                let mqtt_client = self.mqtt_client.clone();
+                let mqtt_client = self.mqtt_client.as_ref().expect("No client available").clone();
                 let broadcast_thread_result = thread::Builder::new().name("worker_announcer".to_string()).spawn(move || {
                     loop {
                         match mqtt_client.publish(message.clone()) {
@@ -138,7 +137,35 @@ impl WorkerAnnouncement {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct WorkerRequest {
+pub struct WorkerRequestRunJob {}
+
+#[derive(Serialize, Deserialize)]
+pub struct WorkerRequestJobStatus {
+    job_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WorkerRequestShutdown {}
+
+#[derive(Serialize, Deserialize)]
+pub enum WorkerRequestQueryType {
+    RunJob(WorkerRequestRunJob),
+    JobStatus(WorkerRequestJobStatus),
+    Shutdown(WorkerRequestShutdown)
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WorkerRequestQuery {
+    pub message_config: Message,
+    pub query_type: WorkerRequestQueryType,
+
+    #[serde(skip)]
+    #[serde(default = "mqtt_client_default")]
+    mqtt_client: mqtt::Client,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WorkerRequestMessage {
     pub message_config: Message,
     pub query: String,
     #[serde(skip)]
@@ -146,7 +173,7 @@ pub struct WorkerRequest {
     mqtt_client: mqtt::Client,
 }
 
-impl fmt::Debug for WorkerRequest {
+impl fmt::Debug for WorkerRequestMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("WorkerRequest")
             .field("message_config", &self.message_config)
@@ -155,9 +182,9 @@ impl fmt::Debug for WorkerRequest {
     }
 }
 
-impl WorkerRequest {
-    pub fn new(mqtt_client: &Client, worker_id: String, msg_id: Uuid, query: String) -> WorkerRequest {
-        WorkerRequest {
+impl WorkerRequestMessage {
+    pub fn new(mqtt_client: &Client, worker_id: String, msg_id: Uuid, query: String) -> WorkerRequestMessage {
+        WorkerRequestMessage {
             message_config: Message {
                 direction: MessageDirection::Request,
                 worker_id,
@@ -179,6 +206,7 @@ impl WorkerRequest {
 pub enum MessageType {
     Capabilities(CapabilitiesMessage),
     Announcement(WorkerAnnouncement),
+    WorkerRequest(WorkerRequestMessage),
 }
 
 pub fn process_message(message: &mqtt::Message) -> Option<MessageType> {
@@ -190,6 +218,10 @@ pub fn process_message(message: &mqtt::Message) -> Option<MessageType> {
         "workers/capabilities" => {
             let this_message: CapabilitiesMessage = serde_json::from_str(message.payload_str().to_string().as_str()).unwrap();
             Some(Capabilities(this_message))
+        },
+        "workers/request" => {
+            let this_message: WorkerRequestMessage = serde_json::from_str(message.payload_str().to_string().as_str()).unwrap();
+            Some(WorkerRequest(this_message))
         },
         &_ => {
             None

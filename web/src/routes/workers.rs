@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use poem::web::{Data};
 use poem_openapi::{OpenApi, Tags};
-use poem_openapi::payload::{Json, PlainText, Response};
+use poem_openapi::payload::{PlainText, Response};
 use crate::AppState;
 use mqttboss::models::workers::{Workers as db_workers};
 
@@ -23,4 +23,5 @@ impl WorkersAPI {
         let json_encode = serde_json::to_string(&workers.expect("Failed to read workers")).expect("Failed to encode workers");
         Response::new(PlainText(json_encode)).header("Content-Type", "application/json")
     }
+    
 }
