@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 paho-mqtt = "0.13.3"
 messages = {path = "../messages"}
+tokio = { version = "1.52.3", features = ["rt", "rt-multi-thread", "macros"] }
+tokio-cron-scheduler = { version = "*", features = ["signal"] }

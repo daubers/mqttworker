@@ -1,64 +1,40 @@
+pub mod mqtt;
 
-use paho_mqtt as mqtt;
-use std::{thread, time::Duration};
-use messages::messages::{CapabilitiesMessage, WorkerAnnouncement, WorkerAnnouncementType};
+use tokio;
+use tokio::signal::unix::{signal, SignalKind};
+use tokio_cron_scheduler::{Job, JobScheduler};
+use messages::messages::CapabilitiesMessage;
+use crate::mqtt::{connect_client_async, connect_client_sync};
 
-fn main() {
-    let hostname = "localhost";
-    let client_id = "rust_cedalo_client";
-    let topic = "#";
-    let qos = 1;
-    let username = "RustClient";
-    let password = "RustPwd";
-
-    // Create a client creation option object. This is used to pass further information during the client creation process.
-    let client_options = mqtt::CreateOptionsBuilder::new()
-        .server_uri(hostname)
-        .client_id(client_id)
-        .finalize();
-
-    // Create the MQTT client
-    let client = mqtt::Client::new(client_options).expect("Error during client creation");
-    let will_msg = WorkerAnnouncement::new(client.clone(), "test_worker".to_string(), WorkerAnnouncementType::ShutdownUnexpected, None);
-
-    // Create a connection option object to configure the username and other information.
-    let connection_options = mqtt::ConnectOptionsBuilder::new()
-        .clean_session(true)
-        .will_message(will_msg.message())
-        .finalize();
-
-    // Connect to the MQTT broker
-    client.connect(connection_options).expect("Failed to connect to broker");
-
-    // Subscribe to the topic
-    client.subscribe(topic, qos).expect("Failed to subscribe");
-
-    // Starts the client receiving messages
-    let rx_queue = client.start_consuming();
-    // Create a thread that stays pending over incoming messages.
-    let handle = thread::spawn(move || {
-        for mqttmsg in rx_queue.iter() {
-            if let Some(mqttmsg) = mqttmsg {
-                println!("Received: -> {}", mqttmsg.payload_str());
-            } else {
-                println!("Unsubscribe: connection closed");
-                break;
-            }
+#[tokio::main]
+async fn main() {
+    let mqtt_client = connect_client_async(true).await.unwrap();
+    let mut scheduler = JobScheduler::new().await.expect("Can't initialise scheduler");
+    scheduler.add(
+        Job::new_async("1/5 * * * * *", |uuid, mut _l| {
+            let mqtt_client_c = connect_client_sync(false).expect("Can't connect sync mqtt client");
+            Box::pin(async move {
+                let capabilities_announcement = CapabilitiesMessage::new("test".to_string());
+                mqtt_client_c.publish(capabilities_announcement.message()).expect("Can't publish message");
+                mqtt_client_c.disconnect(None).expect("Can't disconnect");
+            })
         }
-    });
+        ).expect("Can't add job")
+    ).await.expect("Can't add job");
 
-    let wa = WorkerAnnouncement::new(client.clone(), "test_worker".to_string(), WorkerAnnouncementType::Online, Some(10));
-    wa.run();
+    // Start the scheduler
+    scheduler.start().await.expect("Can't start scheduler");
 
-    // Publish a message
-    let testmsg = CapabilitiesMessage::new("test_worker".to_string());
-    let mqttmsg = mqtt::Message::new(testmsg.topic(), testmsg.message(), qos);
-    client.publish(mqttmsg).expect("Failed to publish message");
-
-    // Keep the program alive for a few seconds to receive messages
-    thread::sleep(Duration::from_secs(100));
-    // Disconnect the client
-    client.disconnect(None).expect("Failed to disconnect");
-    handle.join().expect("Failed to join thread");
-    println!("Disconnected");
+    let mut sig_int_handler = signal(SignalKind::interrupt()).expect("Can't create signal");
+    let mut sig_term_handler = signal(SignalKind::terminate()).expect("Can't create signal");
+    let mut sig_hup_handler = signal(SignalKind::hangup()).expect("Can't create signal");
+    // Wait while the jobs run
+    tokio::select! {
+        _ = sig_int_handler.recv() => println!("SIGINT"),
+        _ = sig_term_handler.recv() => println!("SIGTERM"),
+        _ = sig_hup_handler.recv() => println!("SIGHUP"),
+    }
+    println!("terminating the process...");
+    let _ = scheduler.shutdown();
+    mqtt_client.disconnect(None).await.expect("Can't disconnect client");
 }
