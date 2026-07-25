@@ -1,0 +1,7 @@
+node_name="sample1"
+
+["broker"]
+broker_uri="mqtt://localhost:1883"
+broker_authenticate=false
+broker_username=""
+broker_password=""
