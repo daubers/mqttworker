@@ -20,7 +20,8 @@ pub struct Broker {
     #[serde(default="default_broker_auth")]
     pub broker_authenticate: bool,
     #[serde(default="default_credentials")]
-    pub credentials: Option<Credentials>
+    pub credentials: Option<Credentials>,
+    pub topics: Vec<String>
 }
 
 fn default_broker_auth() -> bool {
