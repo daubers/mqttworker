@@ -5,12 +5,6 @@ use messages::messages::{WorkerAnnouncement, WorkerAnnouncementType};
 use crate::configuration::Config;
 
 pub async fn connect_client_async(configuration: Arc<Config>, send_online: bool) -> Result<mqtt::AsyncClient, paho_mqtt::Error> {
-    // Command-line option(s)
-    let mqtt_connect_options = mqtt::ConnectOptionsBuilder::new()
-        .user_name(configuration.broker.credentials.clone().unwrap().username.clone())
-        .password(configuration.broker.credentials.clone().unwrap().password.clone())
-        .finalize();
-
     let mqtt_create_opts = mqtt::CreateOptionsBuilder::new()
         .server_uri(configuration.broker.broker_uri.clone())
         .finalize();
@@ -21,6 +15,10 @@ pub async fn connect_client_async(configuration: Arc<Config>, send_online: bool)
     // Connect with default options and wait for it to complete or fail
     // The default is an MQTT v3.x connection.
     if configuration.broker.broker_authenticate {
+        let mqtt_connect_options = mqtt::ConnectOptionsBuilder::new()
+            .user_name(configuration.broker.credentials.clone().unwrap().username.clone())
+            .password(configuration.broker.credentials.clone().unwrap().password.clone())
+            .finalize();
         cli.connect(mqtt_connect_options).await.expect("Can't connect");
     } else {
         cli.connect(None).await.expect("Can't connect");
