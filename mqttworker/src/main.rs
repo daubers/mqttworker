@@ -1,16 +1,19 @@
 pub mod mqtt;
 pub mod configuration;
+pub mod containers;
 
 use std::sync::Arc;
 use std::time::Duration;
 use clap::Parser;
+use regex::{Captures, Regex};
 
 use tokio;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::task;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use messages::messages::CapabilitiesMessage;
-use crate::configuration::Config;
+use crate::configuration::{Config, JobDefinition, Task};
+use crate::containers::{run_task, test_container, test_launch_with_volumes, test_list_images};
 use crate::mqtt::connect_client_async;
 const QOS: &[i32] = &[1, 1];
 #[derive(Parser, Debug)]
@@ -19,6 +22,8 @@ struct Args {
     /// Name of the person to greet
     #[arg(short, long)]
     configuration_file: String,
+    #[arg(short, long)]
+    job_definition_file: String
 }
 
 #[tokio::main]
@@ -28,6 +33,16 @@ async fn main() {
     let mqtt_client = connect_client_async(configuration.clone(), true).await.unwrap();
     let mut scheduler = JobScheduler::new().await.expect("Can't initialise scheduler");
     let conf_file = args.configuration_file.clone();
+
+
+    let worker_topic_regex = Regex::new(&*(r"workers/".to_string() + &configuration.node_name.to_string() + &r"/(?<cmd>([a-z]?[A-Z]?[0-9]?/?)+)".to_string())).unwrap();
+    println!("Worker topic regex: {:#?}", worker_topic_regex);
+
+    let tasks: Task = match JobDefinition::new(&args.job_definition_file).job.first_key_value() {
+        None => {panic!()}
+        Some((k, v)) => v.clone()[0].clone()
+    };
+    run_task(tasks).await;
     scheduler.add(
         Job::new_async("1/5 * * * * *", move |_uuid, mut _l| {
             Box::pin({
@@ -76,6 +91,19 @@ async fn main() {
                 print!("(R) ");
             }
             println!("{}", msg);
+            let worker_command = worker_topic_regex.captures(msg.topic());
+            println!("Worker command: {:#?}", worker_command);
+            match worker_command{
+                None => {println!("No worker command")}
+                Some(cmd) => {
+                    println!("Worker command: {:#?}", cmd.name("cmd"));
+
+                }
+            }
+
+            match msg.topic() {
+                &_ => {println!("Unknown topic {:#?}", msg.topic())}
+            }
         }
         else {
             // A "None" means we were disconnected. Try to reconnect...

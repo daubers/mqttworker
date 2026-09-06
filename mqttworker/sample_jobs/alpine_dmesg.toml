@@ -1,0 +1,12 @@
+[worker_requirements]
+min_no_cpus=1
+[job]
+simple_job=[
+    {
+        image="alpine:latest",
+        cmds=[
+            "ls /var",
+            "dmesg"
+        ]
+    }
+]
