@@ -1,20 +1,22 @@
-pub mod mqtt;
 pub mod configuration;
 pub mod containers;
 
+use std::collections::BTreeMap;
+use clap::Parser;
+use regex::Regex;
 use std::sync::Arc;
 use std::time::Duration;
-use clap::Parser;
-use regex::{Captures, Regex};
+use serde_json;
 
+
+use crate::configuration::{Config, JobDefinition, Task};
+use crate::containers::run_task;
+use messages::messages::{CapabilitiesMessage, WorkerStartJobMessage};
+use messages::mqtt::connect_client_async;
 use tokio;
-use tokio::signal::unix::{signal, SignalKind};
+use tokio::signal::unix::{SignalKind, signal};
 use tokio::task;
 use tokio_cron_scheduler::{Job, JobScheduler};
-use messages::messages::CapabilitiesMessage;
-use crate::configuration::{Config, JobDefinition, Task};
-use crate::containers::{run_task, test_container, test_launch_with_volumes, test_list_images};
-use crate::mqtt::connect_client_async;
 const QOS: &[i32] = &[1, 1];
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -30,17 +32,17 @@ struct Args {
 async fn main() {
     let args = Args::parse();
     let configuration = Arc::new(Config::new(&args.configuration_file));
-    let mqtt_client = connect_client_async(configuration.clone(), true).await.unwrap();
+    let mqtt_client = connect_client_async(configuration.broker.clone(), true).await.unwrap();
     let mut scheduler = JobScheduler::new().await.expect("Can't initialise scheduler");
     let conf_file = args.configuration_file.clone();
 
 
-    let worker_topic_regex = Regex::new(&*(r"workers/".to_string() + &configuration.node_name.to_string() + &r"/(?<cmd>([a-z]?[A-Z]?[0-9]?/?)+)".to_string())).unwrap();
+    let worker_topic_regex = Regex::new(&*(r"workers/".to_string() + &configuration.node_name.to_string() + &r"/(?<cmd>([a-z]?[A-Z]?[0-9]?)+)".to_string())).unwrap();
     println!("Worker topic regex: {:#?}", worker_topic_regex);
 
     let tasks: Task = match JobDefinition::new(&args.job_definition_file).job.first_key_value() {
         None => {panic!()}
-        Some((k, v)) => v.clone()[0].clone()
+        Some((_k, v)) => v.clone()[0].clone()
     };
     run_task(tasks).await;
     scheduler.add(
@@ -50,7 +52,7 @@ async fn main() {
             let value = conf_file.clone();
             async move {
                 let conf = Arc::new(Config::new(value.as_str()));
-                let mqtt_client_c = connect_client_async(conf.clone(), false).await.expect("Can't connect sync mqtt client");
+                let mqtt_client_c = connect_client_async(conf.broker.clone(), false).await.expect("Can't connect sync mqtt client");
 
                 let node_name = conf.node_name.clone().as_str().to_string();
                 let capabilities_announcement = CapabilitiesMessage::new(node_name);
@@ -96,8 +98,22 @@ async fn main() {
             match worker_command{
                 None => {println!("No worker command")}
                 Some(cmd) => {
-                    println!("Worker command: {:#?}", cmd.name("cmd"));
-
+                    let command = cmd.name("cmd").unwrap().as_str();
+                    println!("Worker command: {:#?}", command);
+                    match command {
+                        "startjob" => {
+                            println!("Starting job");
+                            let job_full: WorkerStartJobMessage = serde_json::from_str(msg.payload_str().to_string().as_str()).unwrap();;
+                            let job_definion = JobDefinition::from_str(job_full.workflow.as_str());
+                            let tasks: Task = match job_definion.job.first_key_value(){
+                                None => {panic!()}
+                                Some((_k, v)) => v.clone()[0].clone()
+                            };
+                            run_task(tasks).await;
+                        }
+                        "stopjob" => {println!("Stopping job")}
+                        _ => {println!("Unknown worker command")}
+                    }
                 }
             }
 

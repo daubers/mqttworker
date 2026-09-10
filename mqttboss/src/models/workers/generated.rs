@@ -2,7 +2,6 @@
 use messages::messages::WorkerAnnouncement;
 #[allow(unused)]
 use diesel::*;
-use diesel::associations::HasTable;
 use crate::schema::*;
 
 pub type ConnectionType = diesel::pg::PgConnection;
@@ -75,6 +74,7 @@ pub struct UpdateWorkers {
 }
 
 /// Result of a `.paginate` function
+#[allow(dead_code)]
 #[derive(Debug, serde::Serialize)]
 pub struct PaginationResult<T> {
     /// Resulting items that are from the current page

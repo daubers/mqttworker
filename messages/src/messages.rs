@@ -161,6 +161,7 @@ pub struct WorkerRequestQuery {
 
     #[serde(skip)]
     #[serde(default = "mqtt_client_default")]
+    #[allow(dead_code)]
     mqtt_client: mqtt::Client,
 }
 
@@ -170,6 +171,7 @@ pub struct WorkerRequestMessage {
     pub query: String,
     #[serde(skip)]
     #[serde(default = "mqtt_client_default")]
+    #[allow(dead_code)]
     mqtt_client: mqtt::Client,
 }
 
@@ -202,11 +204,50 @@ impl WorkerRequestMessage {
 
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct WorkerStartJobMessage {
+    pub message_config: Message,
+    pub workflow: String,
+    pub target_worker_id: String,
+}
+
+impl fmt::Debug for WorkerStartJobMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WorkerRequest")
+            .field("message_config", &self.message_config)
+            .field("query", &self.workflow)
+            .field("target_worker_id", &self.target_worker_id)
+            .finish()
+    }
+}
+
+impl WorkerStartJobMessage {
+    pub fn new(mqtt_client: &Client, worker_id: String, target_worker_id: String, msg_id: Uuid, workflow: String) -> WorkerStartJobMessage {
+        let topic = format!("workers/{}/startjob", target_worker_id);
+        WorkerStartJobMessage {
+            message_config: Message {
+                direction: MessageDirection::Request,
+                worker_id,
+                message_type: "".to_string(),
+                topic,
+                msg_id: Some(msg_id),
+            },
+            target_worker_id,
+            workflow,
+        }
+    }
+    pub fn message(&self) -> paho_mqtt::Message {
+        mqtt::Message::new(self.message_config.topic.clone(), serde_json::to_string(self).unwrap(), 1)
+    }
+
+}
+
 #[derive(Debug)]
 pub enum MessageType {
     Capabilities(CapabilitiesMessage),
     Announcement(WorkerAnnouncement),
     WorkerRequest(WorkerRequestMessage),
+    WorkerStartJob(WorkerStartJobMessage),
 }
 
 pub fn process_message(message: &mqtt::Message) -> Option<MessageType> {
