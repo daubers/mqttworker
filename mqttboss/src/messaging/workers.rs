@@ -31,6 +31,7 @@ pub fn process_message(message: Message) {
                     }
                 }
                 MessageType::WorkerRequest(_) => {}
+                _ => {}
             }
         },
         None => todo!(),

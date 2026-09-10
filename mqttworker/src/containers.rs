@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::io::{stdout, Read, stderr};
+use std::io::{stdout, stderr};
 use bollard::config::ContainerCreateBody;
 use bollard::Docker;
 use bollard::query_parameters::ListImagesOptionsBuilder;
@@ -87,7 +87,7 @@ pub async fn run_task(task_definition: Task){
         // set stdout in raw mode so we can do tty stuff
         let stdout = stdout();
         let mut stdout = stdout.lock().into_raw_mode().expect("");
-        let stderr = stderr();
+        let _stderr = stderr();
         // pipe docker attach output into stdout
         while let Some(Ok(output)) = output.next().await {
             stdout.write_all(output.into_bytes().as_ref()).expect("");
@@ -193,7 +193,7 @@ pub async fn test_launch_with_volumes() {
                     ),
                 )
                 .await.expect("");
-            let mut cmd = "uname -a\n";
+            let cmd = "uname -a\n";
             // pipe stdin into the docker attach stream input
             spawn(async move {
                 input.write_all(cmd.as_ref()).await.ok();
@@ -207,7 +207,7 @@ pub async fn test_launch_with_volumes() {
             let mut stdout = stdout.lock().into_raw_mode().expect("");
 
             let stderr = stderr();
-            let mut stderr = stderr.lock().into_raw_mode().expect("");
+            let _stderr = stderr.lock().into_raw_mode().expect("");
 
             // pipe docker attach output into stdout
             while let Some(Ok(output)) = output.next().await {

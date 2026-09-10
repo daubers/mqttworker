@@ -1,0 +1,8 @@
+client_name="test_client"
+
+["broker"]
+broker_uri="mqtt://localhost:1883"
+broker_authenticate=false
+broker_username=""
+broker_password=""
+topics = ["workers/announcements", "workers/capabilities", "workers/sample1/#"]

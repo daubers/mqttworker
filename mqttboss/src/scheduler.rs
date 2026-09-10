@@ -1,6 +1,7 @@
 use chrono::{Local, Utc};
 use cron_tab::Cron;
 
+#[allow(dead_code)]
 fn scheduler() {
 // Create a new cron scheduler with UTC timezone
 let mut cron = Cron::new(Utc);
