@@ -1,17 +1,16 @@
 pub mod configuration;
 pub mod containers;
+mod commands;
 
-use std::collections::BTreeMap;
 use clap::Parser;
 use regex::Regex;
 use std::sync::Arc;
 use std::time::Duration;
-use serde_json;
 
 
 use crate::configuration::{Config, JobDefinition, Task};
 use crate::containers::run_task;
-use messages::messages::{CapabilitiesMessage, WorkerStartJobMessage};
+use messages::messages::CapabilitiesMessage;
 use messages::mqtt::connect_client_async;
 use tokio;
 use tokio::signal::unix::{SignalKind, signal};
@@ -98,22 +97,7 @@ async fn main() {
             match worker_command{
                 None => {println!("No worker command")}
                 Some(cmd) => {
-                    let command = cmd.name("cmd").unwrap().as_str();
-                    println!("Worker command: {:#?}", command);
-                    match command {
-                        "startjob" => {
-                            println!("Starting job");
-                            let job_full: WorkerStartJobMessage = serde_json::from_str(msg.payload_str().to_string().as_str()).unwrap();;
-                            let job_definion = JobDefinition::from_str(job_full.workflow.as_str());
-                            let tasks: Task = match job_definion.job.first_key_value(){
-                                None => {panic!()}
-                                Some((_k, v)) => v.clone()[0].clone()
-                            };
-                            run_task(tasks).await;
-                        }
-                        "stopjob" => {println!("Stopping job")}
-                        _ => {println!("Unknown worker command")}
-                    }
+                    commands::start_job(&msg, cmd).await;
                 }
             }
 
