@@ -1,10 +1,12 @@
+use std::sync::Arc;
 use crate::configuration::{JobDefinition, Task};
 use crate::containers::run_task;
 use messages::messages::WorkerStartJobMessage;
 use paho_mqtt::Message;
 use regex::Captures;
+use messages::mqtt::ConnectedClient;
 
-pub async fn start_job(msg: &Message, cmd: Captures<'_>) {
+pub async fn start_job(msg: &Message, cmd: Captures<'_>, mqttc: Arc<ConnectedClient>) {
     let command = cmd.name("cmd").unwrap().as_str();
     println!("Worker command: {:#?}", command);
     match command {
@@ -16,7 +18,7 @@ pub async fn start_job(msg: &Message, cmd: Captures<'_>) {
                 None => { panic!() }
                 Some((_k, v)) => v.clone()[0].clone()
             };
-            run_task(tasks).await;
+            run_task(tasks, mqttc, None).await;
         }
         "stopjob" => { println!("Stopping job") }
         _ => { println!("Unknown worker command") }

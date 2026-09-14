@@ -1,21 +1,37 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::io::{stdout, stderr};
+use std::sync::Arc;
 use bollard::config::ContainerCreateBody;
 use bollard::Docker;
 use bollard::query_parameters::ListImagesOptionsBuilder;
 use futures_util::{StreamExt, TryStreamExt};
+use paho_mqtt::message;
 use tokio::spawn;
 use termion::raw::IntoRawMode;
 use tokio::io::{AsyncWriteExt};
+use messages::mqtt::ConnectedClient;
 use crate::configuration::Task;
+use sha2::{Sha256, Digest};
 
-pub async fn run_task(task_definition: Task){
+
+pub async fn run_task(task_definition: Task, mqttc: Arc<ConnectedClient>, parent_id: Option<String>){
+
+    // Handle defaulting a parent id to 0 if None
+    // This is a very rough and ready default
+    let topic = match parent_id {
+        None => {
+            format!("workers/jobs/{}/{}_{}", uuid::Uuid::new_v4().to_string(),"0".to_string(), uuid::Uuid::new_v4().to_string())
+        },
+        Some(id) => {
+            format!("workers/jobs/{}/{}_{}", uuid::Uuid::new_v4().to_string(), id, uuid::Uuid::new_v4().to_string())
+        }
+    };
     let docker = Docker::connect_with_socket_defaults().unwrap();
     let image = &*task_definition.image;
     let _create_image_result =docker
         .create_image(
             Some(
-                bollard::query_parameters::CreateImageOptionsBuilder::default()
+                bollard::query_parameters::CreateImageOptionsBuilder::default().clone()
                     .from_image(image)
                     .build(),
             ),
@@ -89,8 +105,10 @@ pub async fn run_task(task_definition: Task){
         let mut stdout = stdout.lock().into_raw_mode().expect("");
         let _stderr = stderr();
         // pipe docker attach output into stdout
+        let stdout_topic = format!("{}/stdout", topic);
         while let Some(Ok(output)) = output.next().await {
-            stdout.write_all(output.into_bytes().as_ref()).expect("");
+            stdout.write_all(output.clone().into_bytes().as_ref()).expect("");
+            mqttc.client.publish(message::Message::new(stdout_topic.clone(), output.into_bytes(), 0)).await.ok();
             stdout.flush().expect("");
         }
     }
