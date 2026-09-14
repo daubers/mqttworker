@@ -31,7 +31,7 @@ struct Args {
 async fn main() {
     let args = Args::parse();
     let configuration = Arc::new(Config::new(&args.configuration_file));
-    let mqtt_client = connect_client_async(configuration.broker.clone(), true).await.unwrap();
+    let mqtt_client = Arc::new(connect_client_async(configuration.broker.clone(), true).await.unwrap());
     let mut scheduler = JobScheduler::new().await.expect("Can't initialise scheduler");
     let conf_file = args.configuration_file.clone();
 
@@ -43,7 +43,7 @@ async fn main() {
         None => {panic!()}
         Some((_k, v)) => v.clone()[0].clone()
     };
-    run_task(tasks).await;
+    run_task(tasks, mqtt_client.clone(),Some("main".to_string())).await;
     scheduler.add(
         Job::new_async("1/5 * * * * *", move |_uuid, mut _l| {
             Box::pin({
@@ -97,7 +97,7 @@ async fn main() {
             match worker_command{
                 None => {println!("No worker command")}
                 Some(cmd) => {
-                    commands::start_job(&msg, cmd).await;
+                    commands::start_job(&msg, cmd, mqtt_client.clone()).await;
                 }
             }
 
