@@ -1,0 +1,23 @@
+name: Build And Test
+run-name: ${{ gitea.actor }} is runs ci pipeline
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  publish:
+    runs-on: cargo-latest
+    if: gitea.ref == 'refs/heads/main'
+    steps:
+      - uses: https://github.com/actions/checkout@v3
+      - run: /root/.cargo/bin/cargo build --color=always --profile release
+      - uses: christopherhx/gitea-upload-artifact@v4
+        with:
+          name: mqttworker
+          path: |
+            target/release/mqttboss
+            target/release/mqttworker
+            target/release/web
+            target/release/webwatcher
+            target/release/workercli
