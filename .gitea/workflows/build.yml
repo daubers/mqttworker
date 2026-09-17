@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish:
-    runs-on: cargo-latest
+    runs-on: pkgs.daubney.dev/base-images/ubuntu-cargo:latest
     if: gitea.ref == 'refs/heads/main'
     steps:
       - uses: https://github.com/actions/checkout@v3
