@@ -47,7 +47,7 @@ profile:
 #    failOnUnknown: false
 
 #Specify Qodana linter for analysis (Applied in CI/CD pipeline)
-linter: jetbrains/qodana-rust:2026.2
+linter: jetbrains/qodana-rust:latest
 exclude:
   - name: RsDetachedFile
     paths:
