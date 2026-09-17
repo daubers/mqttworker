@@ -10,8 +10,12 @@ pub fn process_message(message: Message) {
     match get_message(&message) {
         Some(message_struct) => {
             match message_struct {
-                MessageType::Capabilities(_msg) => {
-
+                MessageType::Capabilities(msg) => {
+                    let db_results =  Workers::search_by_message(connection, &msg).unwrap();
+                    if db_results.is_empty() {
+                        // create new record
+                        Workers::create(connection, &CreateWorkers { id: None, name: msg.message_config.worker_id, last_seen: None, cpus: None, ram: None, disk: None, gpu: None, tags: None, available: true }).unwrap();
+                    }
                 }
                 MessageType::Announcement(msg) => {
                     let available = match msg.announcement_type {

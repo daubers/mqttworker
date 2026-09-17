@@ -26,12 +26,22 @@ pub struct Message {
     pub msg_id: Option<uuid::Uuid>,
 }
 
+pub trait MessageConfig {
+    fn message_config(&self) -> &Message;
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CapabilitiesMessage {
-    message_config: Message,
+    pub message_config: Message,
     available_memory: u64,
     num_cores: u32,
     architecture: String,
+}
+
+impl MessageConfig for CapabilitiesMessage {
+    fn message_config(&self) -> &Message {
+        &self.message_config
+    }
 }
 
 impl CapabilitiesMessage {
@@ -80,6 +90,12 @@ pub struct WorkerAnnouncement {
     mqtt_client: Option<mqtt::Client>,
     pub broadcast_interval: Option<u64>,
     pub announcement_type: WorkerAnnouncementType,
+}
+
+impl MessageConfig for WorkerAnnouncement {
+    fn message_config(&self) -> &Message {
+        &self.message_config
+    }
 }
 
 impl fmt::Debug for WorkerAnnouncement {
@@ -222,7 +238,7 @@ impl fmt::Debug for WorkerStartJobMessage {
 }
 
 impl WorkerStartJobMessage {
-    pub fn new(mqtt_client: &Client, worker_id: String, target_worker_id: String, msg_id: Uuid, workflow: String) -> WorkerStartJobMessage {
+    pub fn new(_mqtt_client: &Client, worker_id: String, target_worker_id: String, msg_id: Uuid, workflow: String) -> WorkerStartJobMessage {
         let topic = format!("workers/{}/startjob", target_worker_id);
         WorkerStartJobMessage {
             message_config: Message {

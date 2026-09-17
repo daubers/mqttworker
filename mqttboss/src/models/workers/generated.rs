@@ -1,5 +1,5 @@
 /* @generated and managed by dsync */
-use messages::messages::WorkerAnnouncement;
+use messages::messages::MessageConfig;
 #[allow(unused)]
 use diesel::*;
 use crate::schema::*;
@@ -107,9 +107,9 @@ impl Workers {
 
     }
 
-    pub fn search_by_message(db: &mut ConnectionType, message: &WorkerAnnouncement) -> diesel::QueryResult<Vec<Self>> {
+    pub fn search_by_message(db: &mut ConnectionType, message: &impl MessageConfig) -> diesel::QueryResult<Vec<Self>> {
         use crate::schema::workers::dsl::*;
-        workers.filter(name.eq(message.message_config.worker_id.clone())).load::<Self>(db)
+        workers.filter(name.eq(message.message_config().worker_id.clone())).load::<Self>(db)
     }
 
     /// Update a row in `workers`, identified by the primary key with [`UpdateWorkers`]
