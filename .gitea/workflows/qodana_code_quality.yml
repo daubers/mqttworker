@@ -31,7 +31,7 @@ jobs:
         with:
           # When pr-mode is set to true, Qodana analyzes only the files that have been changed
           pr-mode: false
-          use-caches: false
+          use-caches: true
           post-pr-comment: false
           use-annotations: true
           # Upload Qodana results (SARIF, other artifacts, logs) as an artifact to the job
