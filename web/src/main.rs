@@ -38,7 +38,7 @@ impl Api {
 async fn main() -> Result<(), std::io::Error> {
 
     let state = Arc::new(AppState {
-        mqtt_client: Mutex::new(connect_client().await.unwrap()),
+        mqtt_client: Mutex::new(connect_client().await?),
         db_connection: Mutex::new(establish_connection())
     });
     let all_endpoints = (routes::workers::WorkersAPI, Api);

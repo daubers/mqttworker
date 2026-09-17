@@ -1,9 +1,8 @@
 mod configuration;
 
 use std::{env, fs};
-use std::env::VarError;
 use clap::{Args, Parser, Subcommand};
-use messages::messages::{WorkerRequestMessage, WorkerStartJobMessage};
+use messages::messages::WorkerStartJobMessage;
 use messages::mqtt::{Broker, Credentials};
 use crate::configuration::CliConfig;
 
@@ -46,11 +45,11 @@ enum JobCommands {
 }
 
 
-fn start_job( job_file_path: String){
+fn start_job( _job_file_path: String){
     println!("Starting job");
 }
 
-fn load_broker_config(path_to_config: Option<String>) -> messages::mqtt::Broker {
+fn load_broker_config(path_to_config: Option<String>) -> Broker {
      match path_to_config {
         None => {
             let credentials = match env::var("MQTT_USERNAME") {

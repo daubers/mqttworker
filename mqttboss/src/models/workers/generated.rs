@@ -4,7 +4,7 @@ use messages::messages::MessageConfig;
 use diesel::*;
 use crate::schema::*;
 
-pub type ConnectionType = diesel::pg::PgConnection;
+pub type ConnectionType = PgConnection;
 
 /// Struct representing a row in table `workers`
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::Queryable, diesel::Selectable, diesel::QueryableByName, diesel::Identifiable)]
@@ -91,14 +91,14 @@ pub struct PaginationResult<T> {
 
 impl Workers {
     /// Insert a new row into `workers` with a given [`CreateWorkers`]
-    pub fn create(db: &mut ConnectionType, item: &CreateWorkers) -> diesel::QueryResult<Self> {
+    pub fn create(db: &mut ConnectionType, item: &CreateWorkers) -> QueryResult<Self> {
         use crate::schema::workers::dsl::*;
 
-        diesel::insert_into(workers).values(item).get_result::<Self>(db)
+        insert_into(workers).values(item).get_result::<Self>(db)
     }
 
     /// Get a row from `workers`, identified by the primary key
-    pub fn read(db: &mut ConnectionType, param_id: Option<i32>) -> diesel::QueryResult<Vec<Self>> {
+    pub fn read(db: &mut ConnectionType, param_id: Option<i32>) -> QueryResult<Vec<Self>> {
         use crate::schema::workers::dsl::*;
         match param_id {
             None => {workers.load::<Workers>(db)}
@@ -107,22 +107,22 @@ impl Workers {
 
     }
 
-    pub fn search_by_message(db: &mut ConnectionType, message: &impl MessageConfig) -> diesel::QueryResult<Vec<Self>> {
+    pub fn search_by_message(db: &mut ConnectionType, message: &impl MessageConfig) -> QueryResult<Vec<Self>> {
         use crate::schema::workers::dsl::*;
         workers.filter(name.eq(message.message_config().worker_id.clone())).load::<Self>(db)
     }
 
     /// Update a row in `workers`, identified by the primary key with [`UpdateWorkers`]
-    pub fn update(db: &mut ConnectionType, param_id: i32, item: &UpdateWorkers) -> diesel::QueryResult<Self> {
+    pub fn update(db: &mut ConnectionType, param_id: i32, item: &UpdateWorkers) -> QueryResult<Self> {
         use crate::schema::workers::dsl::*;
 
-        diesel::update(workers.filter(id.eq(param_id))).set(item).get_result(db)
+        update(workers.filter(id.eq(param_id))).set(item).get_result(db)
     }
 
     /// Delete a row in `workers`, identified by the primary key
-    pub fn delete(db: &mut ConnectionType, param_id: i32) -> diesel::QueryResult<usize> {
+    pub fn delete(db: &mut ConnectionType, param_id: i32) -> QueryResult<usize> {
         use crate::schema::workers::dsl::*;
 
-        diesel::delete(workers.filter(id.eq(param_id))).execute(db)
+        delete(workers.filter(id.eq(param_id))).execute(db)
     }
 }

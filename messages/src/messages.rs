@@ -23,7 +23,7 @@ pub struct Message {
     pub worker_id: String,
     pub message_type: String,
     pub topic: String,
-    pub msg_id: Option<uuid::Uuid>,
+    pub msg_id: Option<Uuid>,
 }
 
 pub trait MessageConfig {
@@ -73,7 +73,7 @@ impl CapabilitiesMessage {
 fn mqtt_client_default() -> Client {
     let client_options = mqtt::CreateOptionsBuilder::new()
         .finalize();
-    mqtt::Client::new(client_options).unwrap()
+    Client::new(client_options).unwrap()
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -87,7 +87,7 @@ pub enum WorkerAnnouncementType {
 pub struct WorkerAnnouncement {
     pub message_config: Message,
     #[serde(skip)]
-    mqtt_client: Option<mqtt::Client>,
+    mqtt_client: Option<Client>,
     pub broadcast_interval: Option<u64>,
     pub announcement_type: WorkerAnnouncementType,
 }
@@ -109,7 +109,7 @@ impl fmt::Debug for WorkerAnnouncement {
 }
 
 impl WorkerAnnouncement {
-    pub fn new(mqtt_client: Option<mqtt::Client>, worker_id: String, announcement_type: WorkerAnnouncementType, broadcast_interval: Option<u64>) -> WorkerAnnouncement {
+    pub fn new(mqtt_client: Option<Client>, worker_id: String, announcement_type: WorkerAnnouncementType, broadcast_interval: Option<u64>) -> WorkerAnnouncement {
         WorkerAnnouncement {
             message_config: Message {worker_id, direction: MessageDirection::Broadcast,message_type: "worker_announcement".to_string(), topic: "workers/announcements".to_string(), msg_id: Some(Uuid::new_v4()) },
             mqtt_client,
@@ -178,7 +178,7 @@ pub struct WorkerRequestQuery {
     #[serde(skip)]
     #[serde(default = "mqtt_client_default")]
     #[allow(dead_code)]
-    mqtt_client: mqtt::Client,
+    mqtt_client: Client,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -188,7 +188,7 @@ pub struct WorkerRequestMessage {
     #[serde(skip)]
     #[serde(default = "mqtt_client_default")]
     #[allow(dead_code)]
-    mqtt_client: mqtt::Client,
+    mqtt_client: Client,
 }
 
 impl fmt::Debug for WorkerRequestMessage {

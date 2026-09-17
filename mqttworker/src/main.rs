@@ -45,7 +45,7 @@ async fn main() {
     };
     run_task(tasks, mqtt_client.clone(),Some("main".to_string())).await;
     scheduler.add(
-        Job::new_async("1/5 * * * * *", move |_uuid, mut _l| {
+        Job::new_async("1/5 * * * * *", move |_uuid, _l| {
             Box::pin({
             {
             let value = conf_file.clone();
