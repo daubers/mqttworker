@@ -46,11 +46,6 @@ pub async fn connect_client() -> Result<mqtt::AsyncClient, paho_mqtt::Error> {
         // Connect with default options and wait for it to complete or fail
         // The default is an MQTT v3.x connection.
         cli.connect(None).await.expect("Can't connect");
-
-        // Create a message and publish it
-        println!("Publishing a message on the topic 'test'");
-        let msg = mqtt::Message::new("test", "Hello Rust MQTT world!", mqtt::QOS_1);
-        cli.publish(msg).await.expect("Can't publish");
         Ok(cli)
 }
 

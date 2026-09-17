@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::Write;
 use std::io::{stdout, stderr};
 use std::sync::Arc;
 use bollard::config::ContainerCreateBody;
@@ -11,8 +11,6 @@ use termion::raw::IntoRawMode;
 use tokio::io::{AsyncWriteExt};
 use messages::mqtt::ConnectedClient;
 use crate::configuration::Task;
-use sha2::{Sha256, Digest};
-
 
 pub async fn run_task(task_definition: Task, mqttc: Arc<ConnectedClient>, parent_id: Option<String>){
 

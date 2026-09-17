@@ -1,5 +1,3 @@
-use std::env;
-use std::sync::Arc;
 use paho_mqtt as mqtt;
 use paho_mqtt::{AsyncReceiver, Message};
 use serde::{Deserialize, Serialize};
@@ -47,7 +45,7 @@ pub fn connect_client_sync(send_online: bool, broker: &Broker) -> Result<mqtt::C
         .finalize();
 
     // Create the client
-    let mut cli = mqtt::Client::new(mqtt_create_opts).expect("Can't create client");
+    let cli = mqtt::Client::new(mqtt_create_opts).expect("Can't create client");
 
     // Connect with default options and wait for it to complete or fail
     // The default is an MQTT v3.x connection.

@@ -6,14 +6,11 @@ mod scheduler;
 
 use std::thread;
 use paho_mqtt as mqtt;
-use messages::messages::process_message as get_message;
 use crate::messaging::workers::process_message;
 
 pub mod diesel {
     pub use diesel::*;
 }
-
-
 
 fn main() {
     let hostname = "localhost";
@@ -45,11 +42,8 @@ fn main() {
     let _handle = thread::spawn(move || {
         for mqttmsg in rx_queue.iter() {
             if let Some(mqttmsg) = mqttmsg {
-                println!("Unwrapped message: -> {:?}", get_message(&mqttmsg).unwrap());
-                println!("Received: -> {}", mqttmsg.topic());
                 process_message(mqttmsg);
             } else {
-                println!("Unsubscribe: connection closed");
                 break;
             }
         }
@@ -58,4 +52,5 @@ fn main() {
     loop {
         thread::sleep(std::time::Duration::from_secs(1));
     }
+
 }
